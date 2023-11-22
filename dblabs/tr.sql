@@ -59,7 +59,7 @@ CREATE OR REPLACE FUNCTION enforce_max_basket_total_price()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.total_price > 5000 THEN
-        RAISE EXCEPTION 'Basket total price exceeds the maximum limit ($1000)';
+        RAISE EXCEPTION 'Basket total price exceeds the maximum limit ($5000)';
     END IF;
 
     RETURN NEW;
@@ -80,58 +80,6 @@ INSERT INTO basket (id, total_price, client_id) VALUES (20, 0, 2);
 SELECT * FROM product
 	
 INSERT INTO basket_product (basket_id, product_id) VALUES (20, 1);
-
-
-
-CREATE OR REPLACE FUNCTION add_product_to_basket_with_discount()
-RETURNS TRIGGER AS $$
-DECLARE
-    product_cost real;
-    discounted_cost real;
-    discount_type varchar(10);
-BEGIN
-    SELECT COALESCE(MIN(d.type), 'none')
-    INTO discount_type
-    FROM product_discount pd
-    JOIN discount d ON pd.discount_id = d.id
-    WHERE pd.product_id = NEW.product_id
-    AND d.date_start <= CURRENT_DATE
-    AND d.date_end >= CURRENT_DATE;
-
-    IF discount_type != 'none' THEN
-        SELECT cost INTO product_cost FROM product WHERE id = NEW.product_id;
-
-        SELECT CASE
-            WHEN discount_type = 'percent' THEN product_cost * (1 - (d.value / 100))
-            WHEN discount_type = 'fixed' THEN product_cost - d.value
-            ELSE product_cost
-        END
-        INTO discounted_cost
-        FROM product_discount pd
-        JOIN discount d ON pd.discount_id = d.id
-        WHERE pd.product_id = NEW.product_id
-        AND d.date_start <= CURRENT_DATE
-        AND d.date_end >= CURRENT_DATE;
-    ELSE
-        discounted_cost := product_cost;
-    END IF;
-
-    INSERT INTO basket_product (basket_id, product_id)
-    VALUES (NEW.basket_id, NEW.product_id);
-
-    UPDATE basket
-    SET total_price = total_price + discounted_cost
-    WHERE id = NEW.basket_id;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS add_product_to_basket_with_discount_after_insert ON basket_product
-CREATE TRIGGER add_product_to_basket_with_discount_before_insert
-BEFORE INSERT ON basket_product
-FOR EACH ROW
-EXECUTE FUNCTION add_product_to_basket_with_discount();
 
 SELECT * FROM product_discount
 SELECT * FROM discount
