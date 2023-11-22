@@ -1,7 +1,6 @@
 CREATE OR REPLACE FUNCTION update_basket_total_price()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Calculate the total price for the given basket_id
     UPDATE basket
     SET total_price = (
         SELECT COALESCE(SUM(p.cost), 0)
@@ -203,7 +202,6 @@ BEGIN
   WHERE id = NEW.discount_id;
 RAISE NOTICE 'Discount Type: %, Discount Value: %, product_id: %', discount_type, discount_value, NEW.product_id;
   IF discount_type = 'fixed' THEN
-    RAISE NOTICE 'Discount Type: %, Discount Value: %, product_id: %', discount_type, discount_value, NEW.product_id;
     UPDATE product
     SET cost = product.cost - discount_value
     WHERE id = NEW.product_id;
