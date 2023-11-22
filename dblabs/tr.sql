@@ -172,4 +172,37 @@ SELECT * FROM product
 SELECT * FROM product_discount
 SELECT * FROM discount
 CALL assign_discount_to_product(2, 6);
-CALL delete_product_discount(2, 6);
+CALL delete_product_discount(2, 5);
+
+CREATE OR REPLACE FUNCTION restore_product_price()
+RETURNS TRIGGER AS $$
+DECLARE
+  discount_type varchar(10);
+  discount_value real;
+BEGIN
+  SELECT type, value INTO discount_type, discount_value
+  FROM discount
+  WHERE id = OLD.discount_id;
+  RAISE NOTICE 'Restoring product price after deleting discount: Product %, Discount Type: %, Discount Value: %', OLD.product_id, discount_type, discount_value;
+
+ 
+  IF discount_type = 'fixed' THEN
+    UPDATE product
+    SET cost = product.cost + discount_value
+    WHERE id = OLD.product_id;
+  ELSIF discount_type = 'percentage' THEN
+    UPDATE product
+    SET cost = product.cost / (1 - discount_value / 100)
+    WHERE id = OLD.product_id;
+  ELSE
+    RAISE NOTICE 'Unknown discount type: %', discount_type;
+  END IF;
+
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER restore_product_price_trigger
+AFTER DELETE ON product_discount
+FOR EACH ROW
+EXECUTE FUNCTION restore_product_price();
