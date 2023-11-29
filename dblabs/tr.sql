@@ -206,3 +206,22 @@ CREATE TRIGGER restore_product_price_trigger
 AFTER DELETE ON product_discount
 FOR EACH ROW
 EXECUTE FUNCTION restore_product_price();
+
+CREATE OR REPLACE FUNCTION get_basket_products(client_id_param integer)
+RETURNS SETOF product
+AS $$
+DECLARE
+    product_record product;
+BEGIN
+    RETURN QUERY
+    SELECT p.*
+    FROM product p
+    JOIN basket_product bp ON p.id = bp.product_id
+    JOIN basket b ON bp.basket_id = b.id
+    WHERE b.client_id = client_id_param;
+
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_basket_products(1);
